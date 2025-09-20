@@ -1,133 +1,76 @@
-// src/components/UploadResume.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import config from "../config";
+import Loader from "./Loader";
 
-const UploadResume = () => {
-  const [resume, setResume] = useState(null);
+export default function UploadResume({ jdList = [], onEvaluated }) {
+  const [name, setName] = useState("");
+  const [regno, setRegno] = useState("");
+  const [location, setLocation] = useState("");
+  const [file, setFile] = useState(null);
+  const [selectedJd, setSelectedJd] = useState(jdList.length ? jdList[0].id : "");
+  const [loading, setLoading] = useState(false);
 
-  // Sample resume data (from your example: Pavan Kalyan)
-  const sampleResume = {
-    name: "Pavan Kalyan",
-    contact: {
-      email: "pavankalyan462@gmail.com",
-      phone: "9876543210",
-      linkedin: "LinkedIn",
-      github: "GitHub",
-    },
-    objective:
-      "Enthusiastic and detail-oriented Data Analyst with hands-on experience in Python, SQL, and data visualization. Skilled in conducting in-depth data analysis, web scraping, and building interactive dashboards. Proven ability to generate actionable insights and communicate findings clearly. Eager to contribute to a data-driven organization with strong analytical and collaboration skills.",
-    skills: {
-      "Languages & Tools": "Python, SQL",
-      "Data Visualization": "Matplotlib, Seaborn, Power BI",
-      "Libraries & Frameworks": "Pandas, NumPy, Scikit-learn, BeautifulSoup",
-      "Soft Skills":
-        "Analytical Thinking | Attention to Detail | Team Collaboration | Problem Solving",
-    },
-    education: {
-      degree: "Bachelor of Science in Physics",
-      year: "2020-Nov",
-      university: "Bharti Vidyapeeth Pune",
-    },
-    projects: [
-      {
-        title: "Data Analysis on Used Car Listings",
-        details: [
-          "Scraped car data from cars24.com including make, model, mileage, and price.",
-          "Performed data cleaning and exploratory data analysis (EDA) using Pandas and NumPy.",
-          "Built visualizations in Seaborn and Matplotlib to identify factors influencing car prices.",
-          "Derived insights to understand pricing trends by brand, mileage, and age.",
-        ],
-      },
-      {
-        title: "Analysis of Pizza Hut’s Sales Data using SQL",
-        details: [
-          "Analyzed sales data using SQL to uncover trends in customer preferences and sales performance.",
-          "Wrote complex queries to extract revenue, top-selling items, and location-based sales data.",
-          "Created reports that provided insights into regional performance and product popularity.",
-        ],
-      },
-      {
-        title: "Organizational Hierarchy Management Using SQL",
-        details: [
-          "Designed a relational database to model a company's organizational hierarchy.",
-          "Ensured referential integrity across roles like lead managers, senior managers, and employees.",
-          "Wrote complex SQL queries to join multiple tables and derive insights such as role counts per company.",
-          "Used sample data for demonstration purposes, emphasizing schema design and query logic.",
-        ],
-      },
-    ],
-    certifications: [
-      "Advanced Data Science with Python – FutureSkills Prime | NASSCOM | April 2025",
-    ],
-  };
+  useEffect(() => {
+    if (jdList && jdList.length && !selectedJd) setSelectedJd(jdList[0].id);
+  }, [jdList]);
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    setResume(file);
+  const handleUpload = async (e) => {
+    e.preventDefault();
+    if (!file) return alert("Select a resume file.");
+    if (!selectedJd) return alert("Select a job description to evaluate against.");
+
+    setLoading(true);
+    try {
+      const fd = new FormData();
+      fd.append("name", name || "Anonymous");
+      if (regno) fd.append("regno", regno);
+      if (location) fd.append("location", location);
+      fd.append("file", file);
+
+      // 1) upload resume
+      const r1 = await axios.post(`${config.API_BASE}/upload_resume`, fd, { headers: { "Content-Type": "multipart/form-data" } });
+      const resumeId = r1.data.id;
+
+      // 2) evaluate
+      const params = new URLSearchParams();
+      params.append("resume_id", resumeId);
+      params.append("jd_id", selectedJd);
+      const r2 = await axios.post(`${config.API_BASE}/evaluate`, params.toString(), { headers: { "Content-Type": "application/x-www-form-urlencoded" } });
+
+      alert(`Evaluation done — Score: ${r2.data.score}`);
+      onEvaluated && onEvaluated({ resume: r1.data, eval: r2.data });
+    } catch (err) {
+      console.error(err);
+      alert("Upload or evaluation failed.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="p-6 bg-white rounded-xl shadow-md max-w-4xl mx-auto">
-      <h2 className="text-2xl font-bold mb-4">Upload Your Resume</h2>
-      <input
-        type="file"
-        accept=".pdf,.doc,.docx"
-        onChange={handleFileChange}
-        className="mb-4"
-      />
+    <form className="bg-white p-6 rounded-lg shadow" onSubmit={handleUpload}>
+      <h3 className="text-lg font-semibold mb-3">Upload Resume & Evaluate</h3>
+      <label className="block text-sm">Candidate Name</label>
+      <input value={name} onChange={e=>setName(e.target.value)} className="w-full p-2 border rounded mb-2" placeholder="A. DURGESH"/>
+      <label className="block text-sm">Registration No (optional)</label>
+      <input value={regno} onChange={e=>setRegno(e.target.value)} className="w-full p-2 border rounded mb-2" placeholder="23L31A4304"/>
+      <label className="block text-sm">Location (optional)</label>
+      <input value={location} onChange={e=>setLocation(e.target.value)} className="w-full p-2 border rounded mb-2" />
+      <label className="block text-sm">Select Job</label>
+      <select value={selectedJd} onChange={e=>setSelectedJd(e.target.value)} className="w-full p-2 border rounded mb-2">
+        <option value="">-- Select JD --</option>
+        {jdList.map(j => <option key={j.id} value={j.id}>{j.title} {j.location ? `(${j.location})` : ""}</option>)}
+      </select>
 
-      {resume && (
-        <p className="text-green-600 font-semibold mb-4">
-          File Uploaded: {resume.name}
-        </p>
-      )}
-
-      <h2 className="text-xl font-semibold mt-6 mb-2">📄 Sample Resume Preview</h2>
-      <div className="border p-4 rounded-lg shadow-sm">
-        <h3 className="text-lg font-bold">{sampleResume.name}</h3>
-        <p>
-          {sampleResume.contact.email} | {sampleResume.contact.phone} |{" "}
-          {sampleResume.contact.linkedin} | {sampleResume.contact.github}
-        </p>
-
-        <h4 className="font-semibold mt-4">Objective</h4>
-        <p>{sampleResume.objective}</p>
-
-        <h4 className="font-semibold mt-4">Skills</h4>
-        <ul className="list-disc list-inside">
-          {Object.entries(sampleResume.skills).map(([category, skill], index) => (
-            <li key={index}>
-              <strong>{category}:</strong> {skill}
-            </li>
-          ))}
-        </ul>
-
-        <h4 className="font-semibold mt-4">Education</h4>
-        <p>
-          {sampleResume.education.degree}, {sampleResume.education.university} (
-          {sampleResume.education.year})
-        </p>
-
-        <h4 className="font-semibold mt-4">Projects</h4>
-        {sampleResume.projects.map((proj, i) => (
-          <div key={i} className="mb-2">
-            <strong>{proj.title}</strong>
-            <ul className="list-disc list-inside ml-4">
-              {proj.details.map((detail, j) => (
-                <li key={j}>{detail}</li>
-              ))}
-            </ul>
-          </div>
-        ))}
-
-        <h4 className="font-semibold mt-4">Certifications</h4>
-        <ul className="list-disc list-inside">
-          {sampleResume.certifications.map((cert, i) => (
-            <li key={i}>{cert}</li>
-          ))}
-        </ul>
+      <label className="block text-sm">Resume file</label>
+      <input type="file" onChange={(e)=>setFile(e.target.files?.[0]||null)} className="mb-4"/>
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-gray-600">Accepted: PDF / DOCX</div>
+        <button className="px-4 py-2 bg-green-600 text-white rounded" disabled={loading}>
+          {loading ? <div className="flex items-center gap-2"><Loader size={2} />Processing...</div> : "Upload & Evaluate"}
+        </button>
       </div>
-    </div>
+    </form>
   );
-};
-
-export default UploadResume;
+}
