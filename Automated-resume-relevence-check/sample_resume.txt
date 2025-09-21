@@ -1,6 +1,0 @@
-Pavan Kalyan
-
-Email: pavankalyan462@gmail.com
-Skills: Python, SQL, Data Analysis, Power BI
-Projects: Used Car Analysis, Pizza Sales Analysis
-Education: BSc Physics
